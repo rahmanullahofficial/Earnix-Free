@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0f1a;color:#fff;font-family:system-ui;padding:12px 12px 80px}
+.card{background:#151b2b;border-radius:16px;padding:14px;margin-bottom:12px}
+button,input{width:100%;border:0;border-radius:12px;padding:12px;font-size:15px;margin-top:8px}
+button{background:linear-gradient(90deg,#3b82f6,#6c5ce7);color:#fff}button:disabled{opacity:.5}
+input{background:#0b0f1a;color:#fff;border:1px solid #333}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#151b2b}
+nav div{flex:1;text-align:center;padding:14px 0;font-size:13px;opacity:.6}nav .on{opacity:1;color:#8b7cff}
+#w{width:230px;height:230px;border-radius:50%;margin:14px auto;border:4px solid #fff3;transition:transform 4s cubic-bezier(.1,.8,.2,1);
+background:conic-gradient(#4aa8ff 0 60deg,#f5a623 60deg 120deg,#2ecc71 120deg 180deg,#555 180deg 240deg,#6c5ce7 240deg 300deg,#e84393 300deg)}
+.big{font-size:34px;font-weight:700}.row{display:flex;justify-content:space-between;padding:6px 0}small{opacity:.7}
+</style></head><body><div id=v>Loading…</div><nav id=n></nav>
+<script>
+const LINK='https://t.me/YOUR_BOT/YOUR_APP?startapp='; // <-- change this
+const tg=Telegram.WebApp;tg.ready();tg.expand();
+const api=async(action,x={})=>{const r=await fetch('/api/app',{method:'POST',headers:{'content-type':'application/json'},
+ body:JSON.stringify({initData:tg.initData,action,...x})});return r.json()};
+let S,tab='Home',rot=0;const TABS=['Home','Tasks','Spin','Wallet','Profile'];
+const load=async(a='me',x={})=>{const r=await api(a,x);if(r.error&&!r.me){tg.showAlert(r.error);return r}
+ if(r.error)tg.showAlert(r.error);S=r.me?r:S;draw();return r};
+function draw(){const m=S.me;
+ n.innerHTML=TABS.map(t=>`<div class="${t==tab?'on':''}" onclick="tab='${t}';draw()">${t}</div>`).join('');
+ const pages={
+ Home:`<div class=card><small>TOTAL POINTS</small><div class=big>${m.points}</div><small>${S.me.refs} referrals</small></div>
+  <div class=card>Daily free spins: ${m.spins}<button onclick="tab='Spin';draw()">Go to Spin</button></div>`,
+ Tasks:S.tasks.map(t=>{const d=S.done.includes(t.id);return `<div class=card><b>${t.title}</b> <small>+${t.reward} pts</small>
+  ${d?'<br>✅ Done':`<button onclick="tg.openLink('${t.url}')">Open</button><button onclick="load('task',{taskId:${t.id}})">Verify</button>`}</div>`}).join(''),
+ Spin:`<div class=card style=text-align:center><div id=w style="transform:rotate(${rot}deg)"></div>
+  <div>Spins: ${m.spins}</div><button id=sp onclick=spin()>${m.spins>0?'Spin the wheel':'Spin for 30 points'}</button></div>`,
+ Wallet:`<div class=card><small>POINTS</small><div class=big>${m.points}</div>
+  <input id=ad placeholder="Your wallet address"><button onclick="load('withdraw',{address:ad.value})">Withdraw (min 5000)</button></div>
+  <div class=card><b>Withdrawal history</b>${S.withdrawals.map(w=>`<div class=row><span>${w.points} pts</span><span>${w.status}</span></div>`).join('')||'<br><small>No requests yet</small>'}</div>`,
+ Profile:`<div class=card><b>${tg.initDataUnsafe.user?.first_name||''}</b><br><small>${m.points} points · ${m.refs} referrals</small>
+  <button onclick="tg.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(LINK+tg.initDataUnsafe.user.id))">Invite friends</button></div>
+  <div class=card><b>Leaderboard</b>${S.top.map((u,i)=>`<div class=row><span>${i+1}. ${u.name}</span><span>${u.points}</span></div>`).join('')}</div>`};
+ v.innerHTML=pages[tab]}
+async function spin(){sp.disabled=true;const r=await api('spin');if(r.error){tg.showAlert(r.error);sp.disabled=false;return}
+ rot+=360*5+(360-(rot%360))-(r.prize*60+30);w.style.transform=`rotate(${rot}deg)`;
+ setTimeout(()=>{S=r;draw();tg.HapticFeedback?.notificationOccurred('success')},4200)}
+load();
+</script></body></html>
